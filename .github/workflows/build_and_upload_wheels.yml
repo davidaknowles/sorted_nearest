@@ -15,6 +15,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Required for PyPI trusted publishing (OIDC – no API token needed)
+permissions:
+  id-token: write
+  contents: read
+
 # -----------------------------------------------------------------------------
 # 1. Build wheels (all platforms)
 # -----------------------------------------------------------------------------
@@ -24,7 +29,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # `windows-2019` retires 2025-06-30 – use supported images instead
         os: [ubuntu-latest, macos-latest]
 
     steps:
@@ -36,14 +40,12 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.18.1
 
-      # ---------- CHANGE 1: unique artifact name ----------
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          # wheel sets are keyed by the matrix OS
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
-          retention-days: 7          # optional (defaults to 90)
+          retention-days: 7
 
 # -----------------------------------------------------------------------------
 # 2. Build sdist (Linux only)
@@ -68,21 +70,23 @@ jobs:
           retention-days: 7
 
 # -----------------------------------------------------------------------------
-# 3. Publish to PyPI (only when a tag that starts with `v` is pushed)
+# 3. Publish to PyPI (only when a tag starting with `v` is pushed, or manually)
 # -----------------------------------------------------------------------------
   upload_pypi:
     needs: [build_wheels, build_sdist]
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sorted_nearest
 
     steps:
-      # ---------- CHANGE 2: grab *all* wheel artifacts and merge ----------
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*           # grab every OS-specific wheel set
-          merge-multiple: true        # put them all into a single folder
-          path: dist                  # same folder as the sdist download below
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
 
       - name: Download sdist
         uses: actions/download-artifact@v4
@@ -92,9 +96,3 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: ${{ secrets.PYPI_USER }}
-          password: ${{ secrets.PYPI_PROD_PASSWORD }}
-          verbose: true
-          # For test releases, uncomment ↓
-          # repository_url: https://test.pypi.org/legacy/

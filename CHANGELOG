@@ -1,3 +1,12 @@
+# 0.0.42 (17.04.26)
+- Publish manylinux binary wheels via cibuildwheel so pip no longer compiles
+  from source on the user's machine. This fixes "Illegal instruction" crashes
+  that occurred when the sdist was compiled on a node with AVX-512 and then
+  imported on an older CPU (e.g. Broadwell, no AVX-512).
+- Add explicit cibuildwheel config (CFLAGS="-O2 -march=x86-64") to ensure
+  portable wheel builds.
+- Switch PyPI publishing to OIDC trusted publishing (no API token needed).
+
 # 0.0.40 (30.06.23)
 - use np.int_ instead of long
 
